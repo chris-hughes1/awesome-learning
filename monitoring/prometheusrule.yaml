@@ -1,0 +1,56 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ephemeral-backend-alerts
+  namespace: ephemeral-backend
+  labels:
+    app: ephemeral-backend
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: ephemeral-backend.rules
+    rules:
+    - alert: EphemeralBackendDown
+      expr: up{job="ephemeral-backend-service"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Ephemeral Backend is down"
+        description: "Ephemeral Backend has been down for more than 1 minute"
+    
+    - alert: EphemeralBackendHighCPU
+      expr: rate(container_cpu_usage_seconds_total{pod=~"ephemeral-backend-.*"}[5m]) > 0.8
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on Ephemeral Backend"
+        description: "CPU usage is above 80% for more than 2 minutes"
+    
+    - alert: EphemeralBackendHighMemory
+      expr: container_memory_usage_bytes{pod=~"ephemeral-backend-.*"} / container_spec_memory_limit_bytes > 0.9
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage on Ephemeral Backend"
+        description: "Memory usage is above 90% for more than 2 minutes"
+    
+    - alert: EphemeralBackendHighErrorRate
+      expr: rate(http_requests_total{job="ephemeral-backend-service",status_code=~"5.."}[5m]) / rate(http_requests_total{job="ephemeral-backend-service"}[5m]) > 0.1
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High error rate on Ephemeral Backend"
+        description: "Error rate is above 10% for more than 2 minutes"
+    
+    - alert: EphemeralBackendSlowResponse
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="ephemeral-backend-service"}[5m])) > 1
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Slow response time on Ephemeral Backend"
+        description: "95th percentile response time is above 1 second for more than 2 minutes"
